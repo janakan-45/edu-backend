@@ -1,0 +1,583 @@
+{% extends "wagtailadmin/base.html" %}
+{% load i18n static booking_tags %}
+
+{% block titletag %}{% trans "Dashboard" %}{% endblock %}
+
+{% block content %}
+{% get_unread_notifications as notifications %}
+{% get_booking_stats as booking_stats %}
+{% get_total_bookings_count as total_bookings %}
+{% get_recent_activity as recent_activity %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    :root {
+        --primary-color: #4f46e5;
+        --secondary-color: #818cf8;
+        --bg-color: #f3f4f6;
+        --card-bg: #ffffff;
+        --text-main: #1f2937;
+        --text-muted: #6b7280;
+        --success-color: #10b981;
+        --warning-color: #f59e0b;
+        --danger-color: #ef4444;
+    }
+
+    .dashboard-container {
+        padding: 2rem;
+        background-color: var(--bg-color);
+        min-height: 100vh;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    /* Header & Notifications */
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .welcome-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin-bottom: 0.5rem;
+    }
+
+    .welcome-header p {
+        color: var(--text-muted);
+        font-size: 1.1rem;
+    }
+
+    .notification-center {
+        position: relative;
+    }
+
+    .notification-bell {
+        background: var(--card-bg);
+        border: 1px solid #e5e7eb;
+        padding: 0.75rem;
+        border-radius: 50%;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .notification-bell:hover {
+        background: #f9fafb;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .notification-badge {
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        background: var(--danger-color);
+        color: white;
+        font-size: 0.75rem;
+        width: 1.25rem;
+        height: 1.25rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        border: 2px solid var(--bg-color);
+    }
+
+    .notification-dropdown {
+        position: absolute;
+        top: 120%;
+        right: 0;
+        width: 320px;
+        background: var(--card-bg);
+        border-radius: 0.75rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e5e7eb;
+        z-index: 50;
+        display: none;
+        /* Toggle with JS */
+        overflow: hidden;
+    }
+
+    .notification-dropdown.active {
+        display: block;
+        animation: fadeIn 0.2s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .notification-header {
+        padding: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .notification-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .notification-item {
+        padding: 1rem;
+        border-bottom: 1px solid #f3f4f6;
+        transition: background 0.15s;
+    }
+
+    .notification-item:hover {
+        background: #f9fafb;
+    }
+
+    .notification-item.unread {
+        background: #eff6ff;
+    }
+
+    .notification-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--text-main);
+    }
+
+    .notification-time {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-top: 0.25rem;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: var(--card-bg);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        text-decoration: none;
+        color: inherit;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        height: 100%;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .icon-wrapper {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .bg-blue {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+    }
+
+    .bg-purple {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    }
+
+    .bg-green {
+        background: linear-gradient(135deg, #10b981, #059669);
+    }
+
+    .bg-orange {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+
+    .stat-label {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    /* Main Content Grid (Chart + Recent) */
+    .main-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    @media (max-width: 1024px) {
+        .main-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .dashboard-card {
+        background: var(--card-bg);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+        height: 100%;
+        /* Ensure full height */
+        display: flex;
+        flex-direction: column;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        color: var(--text-main);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* Specific fix for select in dark/light modes of admin */
+    .section-title select {
+        font-size: 0.8rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 0.375rem;
+        border: 1px solid #d1d5db;
+        background-color: white;
+        color: #374151;
+        outline: none;
+        cursor: pointer;
+    }
+
+    /* Recent List */
+    .recent-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        flex-grow: 1;
+        /* Fill space */
+    }
+
+    .recent-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .recent-item:last-child {
+        border-bottom: none;
+    }
+
+    .avatar-placeholder {
+        width: 2.5rem;
+        height: 2.5rem;
+        background: #e0e7ff;
+        color: #4f46e5;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .recent-info div {
+        font-weight: 500;
+        color: var(--text-main);
+    }
+
+    .recent-info span {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        min-height: 200px;
+        color: var(--text-muted);
+        text-align: center;
+    }
+
+    .empty-state svg {
+        margin-bottom: 0.75rem;
+        color: #d1d5db;
+    }
+</style>
+
+<div class="dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="welcome-header">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                <img src="{% static 'img/logo-removebg-preview.png' %}" alt="EduGlobe"
+                    style="height: 60px; width: auto;">
+                <h1 style="margin-bottom: 0;">Dashboard</h1>
+            </div>
+            <p>Welcome back, {{ request.user.first_name|default:request.user.username }}</p>
+        </div>
+
+        <!-- Notification Center -->
+        <div class="notification-center">
+            <div class="notification-bell" onclick="toggleNotifications()">
+                <svg class="icon icon-bell" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                {% if notifications %}
+                <div class="notification-badge">{{ notifications.count }}</div>
+                {% endif %}
+            </div>
+
+            <div class="notification-dropdown" id="notificationDropdown">
+                <div class="notification-header">
+                    <span>Notifications</span>
+                    <span style="font-size: 0.8rem; color: #6b7280; font-weight: normal;">Latest updates</span>
+                </div>
+                <div class="notification-list">
+                    {% for notif in notifications %}
+                    <div class="notification-item unread">
+                        <div class="notification-title">New Booking: {{ notif.first_name }}</div>
+                        <div class="notification-time">{{ notif.created_at|timesince }} ago</div>
+                    </div>
+                    {% empty %}
+                    <div class="notification-item">
+                        <div class="notification-title" style="color: #9ca3af; text-align: center;">No new notifications
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="stats-grid">
+        <a href="/admin/snippets/bookings/booking/" class="stat-card">
+            <div class="stat-header">
+                <div class="icon-wrapper bg-blue">
+                    <svg class="icon icon-mail" aria-hidden="true" width="20" height="20">
+                        <use href="#icon-mail"></use>
+                    </svg>
+                </div>
+                <div>
+                    <div class="stat-label">Total Bookings</div>
+                    <div class="stat-value">{{ total_bookings }}</div>
+                </div>
+            </div>
+        </a>
+
+        <a href="/admin/snippets/university/university/" class="stat-card">
+            <div class="stat-header">
+                <div class="icon-wrapper bg-purple">
+                    <svg class="icon icon-group" aria-hidden="true" width="20" height="20">
+                        <use href="#icon-group"></use>
+                    </svg>
+                </div>
+                <div>
+                    <div class="stat-label">Universities</div>
+                    <div class="stat-value">Active</div>
+                </div>
+            </div>
+        </a>
+
+        <a href="/admin/snippets/country/country/" class="stat-card">
+            <div class="stat-header">
+                <div class="icon-wrapper bg-green">
+                    <svg class="icon icon-globe" aria-hidden="true" width="20" height="20">
+                        <use href="#icon-globe"></use>
+                    </svg>
+                </div>
+                <div>
+                    <div class="stat-label">Countries</div>
+                    <div class="stat-value">Explore</div>
+                </div>
+            </div>
+        </a>
+
+        <a href="/admin/pages/" class="stat-card">
+            <div class="stat-header">
+                <div class="icon-wrapper bg-orange">
+                    <svg class="icon icon-doc-full-inverse" aria-hidden="true" width="20" height="20">
+                        <use href="#icon-doc-full-inverse"></use>
+                    </svg>
+                </div>
+                <div>
+                    <div class="stat-label">Content</div>
+                    <div class="stat-value">Pages</div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Main Content: Graph + Recent Activity -->
+    <div class="main-grid">
+        <!-- Analytics Chart -->
+        <div class="dashboard-card">
+            <div class="section-title">
+                Booking Trends
+                <select>
+                    <option>Last 7 Days</option>
+                </select>
+            </div>
+            <div style="position: relative; height: 300px; width: 100%;">
+                <canvas id="bookingChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Recent Activity / More Options -->
+        <div class="dashboard-card">
+            <div class="section-title">
+                Recent Bookings
+                <a href="/admin/snippets/bookings/booking/" style="font-size: 0.8rem; color: var(--primary-color);">View
+                    All</a>
+            </div>
+            <ul class="recent-list">
+                {% for booking in recent_activity %}
+                <li class="recent-item">
+                    <div class="avatar-placeholder">
+                        {{ booking.first_name|first }}{{ booking.last_name|first }}
+                    </div>
+                    <div class="recent-info">
+                        <div>{{ booking.first_name }} {{ booking.last_name }}</div>
+                        <span>{{ booking.destination }} • {{ booking.created_at|date:"M d" }}</span>
+                    </div>
+                </li>
+                {% empty %}
+                <div class="empty-state">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="1.5">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                    </svg>
+                    <p>No recent bookings</p>
+                </div>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Default Panels -->
+    <div class="dashboard-panels">
+        {% if panels %}
+        {% for panel in panels %}
+        {{ panel.render }}
+        {% endfor %}
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Toggle Notifications
+    function toggleNotifications() {
+        const dropdown = document.getElementById('notificationDropdown');
+        dropdown.classList.toggle('active');
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (event) {
+        const container = document.querySelector('.notification-center');
+        if (!container.contains(event.target)) {
+            document.getElementById('notificationDropdown').classList.remove('active');
+        }
+    });
+
+    // Initialize Chart.js
+    document.addEventListener('DOMContentLoaded', function () {
+        const ctx = document.getElementById('bookingChart');
+        if (ctx) {
+            const stats = JSON.parse('{{ booking_stats|escapejs }}');
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: stats.labels,
+                    datasets: [{
+                        label: 'New Bookings',
+                        data: stats.data,
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#4f46e5',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#f3f4f6'
+                            },
+                            ticks: {
+                                stepSize: 1
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

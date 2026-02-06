@@ -1,0 +1,19 @@
+.sidebar-branding svg,
+.sidebar-branding .wagtail-icon {
+    display: none !important;
+}
+
+.sidebar-branding a {
+    background-image: url('../img/logo-removebg-preview.png') !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: 80% !important;
+    /* Ensure the link has dimensions to show the image */
+    display: block;
+    height: 50px; /* Adjust as needed */
+    width: 100%;
+}
+
+.sidebar-branding {
+    padding: 10px 0; /* Add some spacing if needed */
+}
