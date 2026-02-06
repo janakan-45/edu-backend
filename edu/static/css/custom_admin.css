@@ -17,3 +17,17 @@
 .sidebar-branding {
     padding: 10px 0; /* Add some spacing if needed */
 }
+
+/* Custom menu item icons using logo */
+.sidebar-menu-item a[href*="countries"] .icon::before,
+.sidebar-menu-item a[href*="universities"] .icon::before,
+.sidebar-menu-item a[href*="bookings"] .icon::before {
+    content: "" !important;
+    background-image: url('../img/logo-removebg-preview.png') !important;
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: inline-block !important;
+}

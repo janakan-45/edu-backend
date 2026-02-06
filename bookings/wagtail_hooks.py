@@ -12,7 +12,7 @@ class BookingPermissionPolicy(ModelPermissionPolicy):
 class BookingViewSet(SnippetViewSet):
     model = Booking
     menu_label = 'Bookings'
-    icon = 'mail'
+    icon = 'site'
     list_display = ('first_name', 'last_name', 'email', 'destination', 'created_at')
     list_filter = ('destination', 'office', 'created_at')
     list_export = ('first_name', 'last_name', 'email', 'phone_number', 'destination', 'start_date', 'office', 'counselling_mode', 'created_at')

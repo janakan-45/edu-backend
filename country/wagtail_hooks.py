@@ -5,7 +5,7 @@ from .models import Country
 class CountryViewSet(SnippetViewSet):
     model = Country
     menu_label = 'Countries'
-    icon = 'globe'
+    icon = 'site'
     list_display = ('name', 'slug', 'guide_title')
     list_filter = ('name',)
     list_export = ('name', 'slug', 'description', 'guide_title')
